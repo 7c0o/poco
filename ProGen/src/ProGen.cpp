@@ -584,6 +584,11 @@ protected:
 
 	void fix2022Project(Poco::AutoPtr<Poco::XML::Document> pProjectDoc, const std::set<std::string>& configSet, const std::string& platform, const Poco::Util::AbstractConfiguration& projectProps, const Poco::Util::AbstractConfiguration& templateProps)
 	{
+		// TODO: handle standards
+		// in template:
+		// LanguageStandard="${vc.project.compiler.std.cpp}"
+		// LanguageStandard_C="${vc.project.compiler.std.c}"
+		// for now, we're getting by through AdditionalOptions for C++
 		fix20XXProject(pProjectDoc, configSet, platform, projectProps, templateProps, "v143");
 		Poco::AutoPtr<Poco::XML::NodeList> pLinkList = pProjectDoc->getElementsByTagName("Link");
 		for (unsigned long i = 0; i < pLinkList->length(); i++)
@@ -595,6 +600,21 @@ protected:
 			{
 				appendElement(pLinkElem, "TargetMachine", "MachineARM64");
 			}
+		}
+		Poco::AutoPtr<Poco::XML::NodeList> pClCompileList = pProjectDoc->getElementsByTagName("ClCompile");
+		for (unsigned long i = 0; i < pClCompileList->length(); i++)
+		{
+			Poco::XML::Element* pClCompileElem = static_cast<Poco::XML::Element*>(pClCompileList->item(i));
+			Poco::AutoPtr<Poco::XML::Element> pLanguageStandard = pProjectDoc->createElement("LanguageStandard");
+			Poco::AutoPtr<Poco::XML::Text> pStandardText = pProjectDoc->createTextNode("stdcpp17");
+			pLanguageStandard->appendChild(pStandardText);
+			pClCompileElem->appendChild(pLanguageStandard);
+
+			pClCompileElem = static_cast<Poco::XML::Element*>(pClCompileList->item(i));
+			pLanguageStandard = pProjectDoc->createElement("LanguageStandard_C");
+			pStandardText = pProjectDoc->createTextNode("stdc11");
+			pLanguageStandard->appendChild(pStandardText);
+			pClCompileElem->appendChild(pLanguageStandard);
 		}
 	}
 
@@ -689,11 +709,11 @@ protected:
 						setProperty(*pProps, "configuration.compiler.includes", projectConfig, "vc.project.compiler.include", platform, arch, config);
 						setProperty(*pProps, "configuration.compiler.defines", projectConfig, "vc.project.compiler.defines", platform, arch, config);
 						setProperty(*pProps, "configuration.compiler.disableWarnings", projectConfig, "vc.project.compiler.disableWarnings", platform, arch, config);
-						setProperty(*pProps, "configuration.compiler.additionalOptions", projectConfig, "vc.project.compiler.additionalOptions", platform, arch, config);
+						setProperty(*pProps, "configuration.compiler.additionalOptions", projectConfig, "vc.project.compiler.additionalOptions", platform, arch, config, " ");
 						setProperty(*pProps, "configuration.linker.dependencies", projectConfig, "vc.project.linker.dependencies", platform, arch, config, " ");
 						setProperty(*pProps, "configuration.linker.libraries", projectConfig, "vc.project.linker.libraries", platform, arch, config);
 						setProperty(*pProps, "configuration.linker.entry", projectConfig, "vc.project.linker.entry", platform, arch, config);
-						setProperty(*pProps, "configuration.linker.additionalOptions", projectConfig, "vc.project.linker.additionalOptions", platform, arch, config);
+						setProperty(*pProps, "configuration.linker.additionalOptions", projectConfig, "vc.project.linker.additionalOptions", platform, arch, config, " ");
 						setProperty(*pProps, "configuration.prebuild", projectConfig, "vc.project.prebuild", platform, arch, config);
 						setProperty(*pProps, "configuration.postbuild", projectConfig, "vc.project.postbuild", platform, arch, config);
 						std::string libSuffix = this->config().getString("progen.libsuffix." + config, "");

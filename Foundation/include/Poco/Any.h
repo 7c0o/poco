@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <typeinfo>
 #include <cstring>
+#include <cstddef>
 
 
 #define poco_any_assert(cond) do { if (!(cond)) std::abort(); } while (0)
@@ -39,6 +40,7 @@ template <class T> class VarHolderImpl;
 }
 
 
+#ifndef POCO_DOC
 template <class T, std::size_t S>
 struct TypeSizeLE:
 	std::integral_constant<bool, (sizeof(T) <= S)>{};
@@ -47,6 +49,7 @@ struct TypeSizeLE:
 template <class T, std::size_t S>
 struct TypeSizeGT:
 	std::integral_constant<bool, (sizeof(T) > S)>{};
+#endif
 
 
 template <typename PlaceholderT, unsigned int SizeV = POCO_SMALL_OBJECT_SIZE>
@@ -137,7 +140,8 @@ public:
 	}
 
 private:
-	typedef typename std::aligned_storage<SizeV+1>::type AlignerType;
+	typedef std::max_align_t AlignerType;
+	static_assert(sizeof(AlignerType) <= SizeV + 1, "Aligner type is bigger than the actual storage, so SizeV should be made bigger otherwise you simply waste unused memory.");
 
 	void setLocal(bool local) const
 	{

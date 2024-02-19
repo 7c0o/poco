@@ -38,6 +38,7 @@
 #include <list>
 #include <deque>
 #include <typeinfo>
+#include <type_traits>
 #undef min
 #undef max
 #include <limits>
@@ -67,10 +68,12 @@ void Foundation_API appendJSONString(std::string& val, const Var& any);
 	/// regardless of the underlying type) and appends it to val.
 
 
-void Foundation_API appendJSONValue(std::string& val, const Var& any);
+void Foundation_API appendJSONValue(std::string& val, const Var& any, bool wrap = true);
 	/// Converts the any to a JSON value (if underlying type qualifies
-	/// as string - see isJSONString() - , it is wrapped into double quotes)
-	/// and appends it to val
+	/// as string - see isJSONString() - it is wrapped into double quotes)
+	/// and appends it to val.
+	/// Wrapping can be prevented (useful for appending JSON fragments) by setting
+	/// the wrap argument to false.
 
 
 template <typename C>
@@ -321,16 +324,8 @@ protected:
 		poco_static_assert (std::numeric_limits<F>::is_signed);
 		poco_static_assert (std::numeric_limits<T>::is_signed);
 
-		if (std::numeric_limits<F>::is_integer)
-		{
-			checkUpperLimit<F,T>(from);
-			checkLowerLimit<F,T>(from);
-		}
-		else
-		{
-			checkUpperLimitFloat<F,T>(from);
-			checkLowerLimitFloat<F,T>(from);
-		}
+		checkUpperLimit<F,T>(from);
+		checkLowerLimit<F,T>(from);
 
 		to = static_cast<T>(from);
 	}
@@ -366,11 +361,11 @@ protected:
 
 		if (from < 0)
 			throw RangeException("Value too small.");
-		checkUpperLimit<F,T>(from);
+		checkUpperLimit<std::make_unsigned_t<F>,T>(from);
 		to = static_cast<T>(from);
 	}
 
-	template <typename F, typename T>
+	template <typename F, typename T, std::enable_if_t<std::is_floating_point<F>::value, bool> = true>
 	void convertSignedFloatToUnsigned(const F& from, T& to) const
 		/// This function is meant for converting floating point data types to
 		/// unsigned integral data types. Negative values can not be converted and if one
@@ -385,7 +380,7 @@ protected:
 
 		if (from < 0)
 			throw RangeException("Value too small.");
-		checkUpperLimitFloat<F,T>(from);
+		checkUpperLimit<F,T>(from);
 		to = static_cast<T>(from);
 	}
 
@@ -407,22 +402,22 @@ protected:
 
 private:
 
-	template <typename F, typename T>
+	template <typename F, typename T, std::enable_if_t<std::is_integral<F>::value, bool> = true>
 	void checkUpperLimit(const F& from) const
 	{
 		if (from > std::numeric_limits<T>::max())
 			throw RangeException("Value too large.");
 	}
 
-	template <typename F, typename T>
+	template <typename F, typename T, std::enable_if_t<std::is_integral<F>::value, bool> = true>
 	void checkLowerLimit(const F& from) const
 	{
 		if (from < std::numeric_limits<T>::min())
 			throw RangeException("Value too small.");
 	}
 
-	template <typename F, typename T>
-	void checkUpperLimitFloat(const F& from) const
+	template <typename F, typename T, std::enable_if_t<std::is_floating_point<F>::value, bool> = true>
+	void checkUpperLimit(const F& from) const
 	{
 		if (std::is_floating_point<T>::value)
 		{
@@ -437,8 +432,8 @@ private:
 		}
 	}
 
-	template <typename F, typename T>
-	void checkLowerLimitFloat(const F& from) const
+	template <typename F, typename T, std::enable_if_t<std::is_floating_point<F>::value, bool> = true>
+	void checkLowerLimit(const F& from) const
 	{
 		if (std::is_floating_point<T>::value)
 		{
